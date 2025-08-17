@@ -1,0 +1,20 @@
+# AI Generated - Unity .gitignore for user-created assets only
+
+# Ignore everything by default
+/*
+
+# Include user-created content
+!/[Aa]ssets/
+!/[Pp]rojectSettings/
+!/[Pp]ackages/manifest.json
+!/[Pp]ackages/packages-lock.json
+!/.gitignore
+!/README.md
+
+# Exclude Unity generated files within Assets
+[Aa]ssets/[Ll]ibrary/
+[Aa]ssets/[Tt]emp/
+[Aa]ssets/[Tt]ext[Mm]esh [Pp]ro
+
+# Ignore png assets, which are large terrain source files
+*.png
