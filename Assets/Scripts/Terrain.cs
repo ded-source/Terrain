@@ -18,6 +18,9 @@ public class Terrain : MonoBehaviour
     [SerializeField] private Camera mainCamera;
     [SerializeField] private Camera overheadDebugCamera;
 
+    [SerializeField] private Clipmap albedoMapClipmap;
+    [SerializeField] private Clipmap heightMapClipmap;
+
     Mesh tileMesh_;
     List<Matrix4x4> tileMatrices_;
     int lodCount_;
@@ -232,6 +235,9 @@ public class Terrain : MonoBehaviour
     void Update()
     {
         UpdateTileMatrices(mainCamera.transform.position);
+
+        albedoMapClipmap.UpdateTiles(mainCamera.transform.position.x / terrainSizeMeters, mainCamera.transform.position.z / terrainSizeMeters);
+        heightMapClipmap.UpdateTiles(mainCamera.transform.position.x / terrainSizeMeters, mainCamera.transform.position.z / terrainSizeMeters);
 
         // Draw for main camera
         Graphics.DrawMeshInstanced(
