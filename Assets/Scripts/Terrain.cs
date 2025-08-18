@@ -8,11 +8,9 @@ public class Terrain : MonoBehaviour
     [SerializeField] private float terrainSizeMeters = 8192.0f;
     [SerializeField] private float terrainHeightMeters = 32.0f;
     [SerializeField] private float tileSizeMeters = 64.0f;
+    [SerializeField] private int tileQuadCount = 32;
 
-    [SerializeField] private int tileQuadCount = 33;
-
-    [SerializeField] private Material tileMaterial;
-    [SerializeField] private Material debugMaterial;
+    [SerializeField] private Material tileMaterialPrefab;
 
     [SerializeField] private float lod0Distance = 64.0f;
     [SerializeField] private float lodBias = 2.0f;
@@ -23,6 +21,9 @@ public class Terrain : MonoBehaviour
     Mesh tileMesh_;
     List<Matrix4x4> tileMatrices_;
     int lodCount_;
+
+    private Material tileMaterial_;
+    private Material debugMaterial_;
 
     class QuadTreeNode
     {
@@ -125,13 +126,18 @@ public class Terrain : MonoBehaviour
 
     void SetupMaterial()
     {
-        tileMaterial.SetFloat("_HeightScale", terrainHeightMeters);
-        tileMaterial.SetFloat("_TerrainSize", terrainSizeMeters);
-        tileMaterial.SetFloat("_TileSize", tileSizeMeters);
+        tileMaterial_ = Instantiate(tileMaterialPrefab);
+        debugMaterial_ = Instantiate(tileMaterialPrefab);
 
-        debugMaterial.SetFloat("_HeightScale", terrainHeightMeters);
-        debugMaterial.SetFloat("_TerrainSize", terrainSizeMeters);
-        debugMaterial.SetFloat("_TileSize", tileSizeMeters);
+        tileMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
+        tileMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
+        tileMaterial_.SetFloat("_TileSize", tileSizeMeters);
+        tileMaterial_.DisableKeyword("_ENABLE_DEBUG_VIEW_ON");
+
+        debugMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
+        debugMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
+        debugMaterial_.SetFloat("_TileSize", tileSizeMeters);
+        debugMaterial_.EnableKeyword("_ENABLE_DEBUG_VIEW_ON");
     }
 
     // This makes some assumptions about terrain size and tile size being powers of two.
@@ -229,14 +235,14 @@ public class Terrain : MonoBehaviour
 
         // Draw for main camera
         Graphics.DrawMeshInstanced(
-            tileMesh_, 0, tileMaterial, tileMatrices_,
+            tileMesh_, 0, tileMaterial_, tileMatrices_,
             properties: null,
             castShadows: UnityEngine.Rendering.ShadowCastingMode.On,
             receiveShadows: true,
             layer: 0);
 
         // Draw for debug camera
-        Graphics.DrawMeshInstanced(tileMesh_, 0, debugMaterial, tileMatrices_,
+        Graphics.DrawMeshInstanced(tileMesh_, 0, debugMaterial_, tileMatrices_,
             properties: null,
             castShadows: UnityEngine.Rendering.ShadowCastingMode.On,
             receiveShadows: true,
