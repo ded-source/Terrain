@@ -11,10 +11,11 @@
 !/.gitignore
 !/README.md
 
+# Ignore terrain albedo and height maps
+Assets/Images/TerrainAlbedoMap*
+Assets/Images/TerrainHeightMap*
+
 # Exclude Unity generated files within Assets
 [Aa]ssets/[Ll]ibrary/
 [Aa]ssets/[Tt]emp/
 [Aa]ssets/[Tt]ext[Mm]esh [Pp]ro*
-
-# Ignore png assets, which are large terrain source files
-*.png
