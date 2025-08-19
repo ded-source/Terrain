@@ -10,6 +10,7 @@
 !/[Pp]ackages/packages-lock.json
 !/.gitignore
 !/README.md
+!/ReadmeResources/
 
 # Ignore terrain albedo and height maps
 Assets/Images/TerrainAlbedoMap*
