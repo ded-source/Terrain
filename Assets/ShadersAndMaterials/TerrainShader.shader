@@ -1,9 +1,15 @@
-Shader "Unlit/TerrainShader"
+Shader "Unlit/TerrainClipmapShader"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
-        _HeightMap ("Texture", 2D) = "black" {}
+        _MainTex ("Albedo Map", 2D) = "white" {}
+        _HeightMap ("Height Map", 2D) = "black" {}
+
+        _MainTexClipmapArray ("Albedo Map Clipmap Array", 2DArray) = "" {}
+        _MainTexClipmapArrayCount("Albedo Map Clipmap Array Count", Float) = 0.0
+        _HeightMapClipmapArray("Height Map Clipmap Array", 2DArray) = "" {}
+        _HeightMapClipmapArrayCount("Height Map Clipmap Array Count", Float) = 0.0
+
         _TerrainSize("Terrain Size Meters", Float) = 1.0
         _HeightScale("Terrain Height Scale", Float) = 1.0
         _TileSize("Terrain Tile Size Meters", Float) = 1.0
@@ -51,18 +57,56 @@ Shader "Unlit/TerrainShader"
             {
                 float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
+                float lod : TEXCOORD1;
                 #ifdef _ENABLE_DEBUG_VIEW_ON
-                nointerpolation float2 tilePos : TEXCOORD1;
+                nointerpolation float2 tilePos : TEXCOORD2;
                 #endif
             };
 
             sampler2D _MainTex;
-            float4 _MainTex_ST;
             sampler2D _HeightMap;
-            float4 _HeightMap_ST;
             float _TerrainSize;
             float _HeightScale;
             float _TileSize;
+
+            UNITY_DECLARE_TEX2DARRAY(_MainTexClipmapArray);
+            float _MainTexClipmapArrayCount;
+            UNITY_DECLARE_TEX2DARRAY(_HeightMapClipmapArray);
+            float _HeightMapClipmapArrayCount;
+
+            float4 sampleClipmap(UNITY_ARGS_TEX2DARRAY(clipmapArray), float arrayCount, sampler2D baseTexture, float lod, float2 uv)
+            {
+                float4 col0 = float4(1, 0, 0, 1);
+                float4 col1 = float4(0, 1, 0, 1);
+                float lerpVal = 0.0;
+
+                if(lod >= arrayCount - 1)
+                {
+                    col1 = tex2Dlod(baseTexture, float4(uv, 0.0, max(0, lod - arrayCount)));
+                    lerpVal = 1.0;
+                }
+
+                if(lod < arrayCount)
+                {
+                    float sampleLod = floor(lod);
+                    float clipmapUvScale = pow(2, arrayCount - sampleLod);
+                    float2 clipmapUv = uv * clipmapUvScale - (clipmapUvScale * 0.5);
+                    col0 = UNITY_SAMPLE_TEX2DARRAY_LOD(clipmapArray, float3(clipmapUv, sampleLod), 0);
+
+                    if(lod < arrayCount - 1)
+                    {
+                        sampleLod = ceil(lod);
+                        clipmapUvScale = pow(2, arrayCount - sampleLod);
+                        clipmapUv = uv * clipmapUvScale - (clipmapUvScale * 0.5);
+                        col1 = UNITY_SAMPLE_TEX2DARRAY_LOD(clipmapArray, float3(clipmapUv, sampleLod), 0);
+                    }
+
+                    lerpVal = frac(lod);
+                }
+
+                float4 col = lerp(col0, col1, lerpVal);
+                return col;
+            }
 
             v2f vert (appdata v)
             {
@@ -72,12 +116,14 @@ Shader "Unlit/TerrainShader"
                 float2 worldPos = mul(unity_ObjectToWorld, v.vertex).xz;
                 float2 uv = worldPos / _TerrainSize;
                 float vertexDistance = -UnityObjectToViewPos(v.vertex).z;
-                float heightMapLod = log2(vertexDistance / _TileSize);
-                float height = tex2Dlod(_HeightMap, float4(uv, 0, heightMapLod)).r;
+                float lod = max(0, log2(vertexDistance / _TileSize / 4) - 0.5);
 
+                float height = sampleClipmap(UNITY_PASS_TEX2DARRAY(_HeightMapClipmapArray), _HeightMapClipmapArrayCount, _HeightMap, lod, uv).r;
+                
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex + float4(0.0, height * _HeightScale, 0.0, 0.0));
                 o.uv = uv;
+                o.lod = lod;
                 #ifdef _ENABLE_DEBUG_VIEW_ON
                 o.tilePos = mul(unity_ObjectToWorld, float4(0.0, 0.0, 0.0, 1.0)).xz;
                 #endif
@@ -89,7 +135,9 @@ Shader "Unlit/TerrainShader"
                 #ifdef _ENABLE_DEBUG_VIEW_ON
                 fixed4 col = randColor(i.tilePos);
                 #else
-                fixed4 col = tex2D(_MainTex, i.uv);
+
+                fixed4 col = sampleClipmap(UNITY_PASS_TEX2DARRAY(_MainTexClipmapArray), _MainTexClipmapArrayCount, _MainTex, i.lod, i.uv);
+                
                 #endif
                 return col;
             }

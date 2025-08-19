@@ -20,7 +20,7 @@ public class Clipmap : MonoBehaviour
     private int clipArrayCount_;
     private List<RectInt> loadedTilesRect_;
 
-    public Texture2DArray ClipTextureArray
+    public Texture2DArray ClipmapTextureArray
     {
         get => clipTextureArray_;
     }

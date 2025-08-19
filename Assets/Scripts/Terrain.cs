@@ -10,7 +10,7 @@ public class Terrain : MonoBehaviour
     [SerializeField] private float tileSizeMeters = 64.0f;
     [SerializeField] private int tileQuadCount = 32;
 
-    [SerializeField] private Material tileMaterialPrefab;
+    [SerializeField] private Material terrainMaterialPrefab;
 
     [SerializeField] private float lod0Distance = 64.0f;
     [SerializeField] private float lodBias = 2.0f;
@@ -25,7 +25,7 @@ public class Terrain : MonoBehaviour
     List<Matrix4x4> tileMatrices_;
     int lodCount_;
 
-    private Material tileMaterial_;
+    private Material terrainMaterial_;
     private Material debugMaterial_;
 
     class QuadTreeNode
@@ -129,13 +129,13 @@ public class Terrain : MonoBehaviour
 
     void SetupMaterial()
     {
-        tileMaterial_ = Instantiate(tileMaterialPrefab);
-        debugMaterial_ = Instantiate(tileMaterialPrefab);
+        terrainMaterial_ = Instantiate(terrainMaterialPrefab);
+        debugMaterial_ = Instantiate(terrainMaterialPrefab);
 
-        tileMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
-        tileMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
-        tileMaterial_.SetFloat("_TileSize", tileSizeMeters);
-        tileMaterial_.DisableKeyword("_ENABLE_DEBUG_VIEW_ON");
+        terrainMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
+        terrainMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
+        terrainMaterial_.SetFloat("_TileSize", tileSizeMeters);
+        terrainMaterial_.DisableKeyword("_ENABLE_DEBUG_VIEW_ON");
 
         debugMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
         debugMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
@@ -174,7 +174,7 @@ public class Terrain : MonoBehaviour
         }
     }
 
-    void UpdateTileMatrices(Vector3 eyePos)
+    void UpdateTiles(Vector3 eyePos)
     {
         tileMatrices_.Clear();
 
@@ -210,6 +210,9 @@ public class Terrain : MonoBehaviour
                 }
             }
         }
+
+        albedoMapClipmap.UpdateTiles(mainCamera.transform.position.x / terrainSizeMeters, mainCamera.transform.position.z / terrainSizeMeters);
+        heightMapClipmap.UpdateTiles(mainCamera.transform.position.x / terrainSizeMeters, mainCamera.transform.position.z / terrainSizeMeters);
     }
 
     void SetupCameras()
@@ -231,24 +234,36 @@ public class Terrain : MonoBehaviour
         SetupCameras();
     }
 
+    void UpdateMaterials()
+    {
+        terrainMaterial_.SetTexture("_MainTexClipmapArray", albedoMapClipmap.ClipmapTextureArray);
+        terrainMaterial_.SetFloat("_MainTexClipmapArrayCount", albedoMapClipmap.ClipmapTextureArray.depth);
+        terrainMaterial_.SetTexture("_MainTexClipmapArray", albedoMapClipmap.ClipmapTextureArray);
+        terrainMaterial_.SetFloat("_MainTexClipmapArrayCount", albedoMapClipmap.ClipmapTextureArray.depth);
+
+        debugMaterial_.SetTexture("_HeightMapClipmapArray", heightMapClipmap.ClipmapTextureArray);
+        debugMaterial_.SetFloat("_HeightMapClipmapArrayCount", heightMapClipmap.ClipmapTextureArray.depth);
+        debugMaterial_.SetTexture("_HeightMapClipmapArray", heightMapClipmap.ClipmapTextureArray);
+        debugMaterial_.SetFloat("_HeightMapClipmapArrayCount", heightMapClipmap.ClipmapTextureArray.depth);
+    }
+
     // Update is called once per frame
     void Update()
     {
-        UpdateTileMatrices(mainCamera.transform.position);
-
-        albedoMapClipmap.UpdateTiles(mainCamera.transform.position.x / terrainSizeMeters, mainCamera.transform.position.z / terrainSizeMeters);
-        heightMapClipmap.UpdateTiles(mainCamera.transform.position.x / terrainSizeMeters, mainCamera.transform.position.z / terrainSizeMeters);
+        UpdateTiles(mainCamera.transform.position);
+        UpdateMaterials();
 
         // Draw for main camera
         Graphics.DrawMeshInstanced(
-            tileMesh_, 0, tileMaterial_, tileMatrices_,
+            tileMesh_, 0, terrainMaterial_, tileMatrices_,
             properties: null,
             castShadows: UnityEngine.Rendering.ShadowCastingMode.On,
             receiveShadows: true,
             layer: 0);
 
         // Draw for debug camera
-        Graphics.DrawMeshInstanced(tileMesh_, 0, debugMaterial_, tileMatrices_,
+        Graphics.DrawMeshInstanced(
+            tileMesh_, 0, debugMaterial_, tileMatrices_,
             properties: null,
             castShadows: UnityEngine.Rendering.ShadowCastingMode.On,
             receiveShadows: true,
