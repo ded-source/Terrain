@@ -1,7 +1,8 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.Rendering;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.UI;
 
@@ -20,6 +21,9 @@ public class Clipmap : MonoBehaviour
     private int clipArrayCount_;
     private List<RectInt> loadedTilesRect_;
 
+    private Dictionary<GraphicsFence, List<Texture2D>> allLoadedTextures_ = new Dictionary<GraphicsFence, List<Texture2D>>();
+    List<Texture2D> lastLoadedTextures_ = new List<Texture2D>();
+    
     public Texture2DArray ClipmapTextureArray
     {
         get => clipTextureArray_;
@@ -53,7 +57,8 @@ public class Clipmap : MonoBehaviour
             Debug.Assert(tileSize_ == tileTexture.width && tileSize_ == tileTexture.height);
             Graphics.CopyTexture(tileTexture, 0, 0, 0, 0, tileSize_, tileSize_,
                                  clipTextureArray_, lod, 0, dstX * tileSize_, dstY * tileSize_);
-            Resources.UnloadAsset(tileTexture);
+            Addressables.Release(handle);
+            lastLoadedTextures_.Add(tileTexture);
         }
     }
 
@@ -95,6 +100,18 @@ public class Clipmap : MonoBehaviour
         {
             Graphics.CopyTexture(clipTextureArray_, i, uiImages_[i].texture, 0);
         }
+
+        // Unload any texture assets for textures that have been successfully loaded and copied to clipTextureArray_.
+        var passedFences = allLoadedTextures_.Keys.Where(key => key.passed).ToList();
+        foreach (var passedFence in passedFences)
+        {
+            var texturesToUnload = allLoadedTextures_[passedFence];
+            foreach (var texture in texturesToUnload)
+            {
+                Resources.UnloadAsset(texture);
+            }
+            allLoadedTextures_.Remove(passedFence);
+        }
     }
 
     public void UpdateTiles(float xPos, float yPos)
@@ -126,6 +143,14 @@ public class Clipmap : MonoBehaviour
             }
 
             loadedTilesRect_[i] = requiredTiles;
+        }
+
+        // Use a fence to signal when it is safe to free loaded texture assets from CPU memory.
+        if (lastLoadedTextures_.Count > 0)
+        {
+            var fence = Graphics.CreateGraphicsFence(GraphicsFenceType.AsyncQueueSynchronisation, SynchronisationStageFlags.AllGPUOperations);
+            allLoadedTextures_[fence] = new List<Texture2D>(lastLoadedTextures_);
+            lastLoadedTextures_.Clear();
         }
     }
 }
