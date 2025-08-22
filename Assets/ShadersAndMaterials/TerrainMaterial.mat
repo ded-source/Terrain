@@ -24,18 +24,28 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _HeightMap:
-        m_Texture: {fileID: 2800000, guid: 6102a1722ced9844991b44d4339f5cff, type: 3}
+        m_Texture: {fileID: 2800000, guid: 4d58490e19f900a41be802c5d547fca6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _HeightMapClipmapArray:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 8ece7fe92e949104ebdab71a5f544846, type: 3}
+        m_Texture: {fileID: 2800000, guid: ff704fdfbe2f4d7498b85601825d6097, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTexClipmapArray:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _ENABLE_DEBUG_VIEW: 0
-    - _HeightScale: 1800
-    - _TerrainSize: 65536
+    - _HeightMapClipmapArrayCount: 0
+    - _HeightScale: 3000
+    - _MainTexClipmapArrayCount: 0
+    - _TerrainSize: 131072
     - _TileSize: 256
     m_Colors:
     - _TerrainSize: {r: 65536, g: 65536, b: 0, a: 0}
