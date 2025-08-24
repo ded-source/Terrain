@@ -127,19 +127,28 @@ public class Terrain : MonoBehaviour
         }
     }
 
-    void SetupMaterial()
+    void SetupMaterialCommon(Material m)
+    {
+        Debug.Assert(albedoMapClipmap.VirtualSizeTexels == heightMapClipmap.VirtualSizeTexels);
+        Debug.Assert(albedoMapClipmap.TileSizeTexels == heightMapClipmap.TileSizeTexels);
+
+        m.SetFloat("_HeightScale", terrainHeightMeters);
+        m.SetFloat("_TerrainSize", terrainSizeMeters);
+        m.SetTexture("_AlbedoMapClipmapArray", albedoMapClipmap.TextureArray);
+        m.SetFloat("_AlbedoMapClipmapArrayCount", albedoMapClipmap.TextureArray.depth);
+        m.SetTexture("_AlbedoMapClipmapArray", albedoMapClipmap.TextureArray);
+        m.SetFloat("_AlbedoMapClipmapArrayCount", albedoMapClipmap.TextureArray.depth);
+        m.SetFloat("_TileSizeTexels", albedoMapClipmap.TileSizeTexels);
+    }
+
+    void SetupMaterials()
     {
         terrainMaterial_ = Instantiate(terrainMaterialPrefab);
-        debugMaterial_ = Instantiate(terrainMaterialPrefab);
-
-        terrainMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
-        terrainMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
-        terrainMaterial_.SetFloat("_TileSize", tileSizeMeters);
+        SetupMaterialCommon(terrainMaterial_);
         terrainMaterial_.DisableKeyword("_ENABLE_DEBUG_VIEW_ON");
 
-        debugMaterial_.SetFloat("_HeightScale", terrainHeightMeters);
-        debugMaterial_.SetFloat("_TerrainSize", terrainSizeMeters);
-        debugMaterial_.SetFloat("_TileSize", tileSizeMeters);
+        debugMaterial_ = Instantiate(terrainMaterialPrefab);
+        SetupMaterialCommon(debugMaterial_);
         debugMaterial_.EnableKeyword("_ENABLE_DEBUG_VIEW_ON");
     }
 
@@ -217,10 +226,8 @@ public class Terrain : MonoBehaviour
 
     void SetupCameras()
     {
-        mainCamera.transform.position = new Vector3(terrainSizeMeters / 2, terrainHeightMeters * 2, terrainSizeMeters / 2);
-
         overheadDebugCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        overheadDebugCamera.transform.position = mainCamera.transform.position + new Vector3(0.0f, 1000.0f, 0.0f);
+        overheadDebugCamera.transform.position = new Vector3(terrainSizeMeters / 2, terrainHeightMeters, terrainSizeMeters / 2);
         overheadDebugCamera.orthographicSize = terrainSizeMeters / 2;
     }
 
@@ -229,29 +236,15 @@ public class Terrain : MonoBehaviour
     {
         SetupTileMesh();
         SetupInstanceMatrices();
-        SetupMaterial();
+        SetupMaterials();
         SetupQuadTree();
         SetupCameras();
-    }
-
-    void UpdateMaterials()
-    {
-        terrainMaterial_.SetTexture("_MainTexClipmapArray", albedoMapClipmap.ClipmapTextureArray);
-        terrainMaterial_.SetFloat("_MainTexClipmapArrayCount", albedoMapClipmap.ClipmapTextureArray.depth);
-        terrainMaterial_.SetTexture("_MainTexClipmapArray", albedoMapClipmap.ClipmapTextureArray);
-        terrainMaterial_.SetFloat("_MainTexClipmapArrayCount", albedoMapClipmap.ClipmapTextureArray.depth);
-
-        debugMaterial_.SetTexture("_HeightMapClipmapArray", heightMapClipmap.ClipmapTextureArray);
-        debugMaterial_.SetFloat("_HeightMapClipmapArrayCount", heightMapClipmap.ClipmapTextureArray.depth);
-        debugMaterial_.SetTexture("_HeightMapClipmapArray", heightMapClipmap.ClipmapTextureArray);
-        debugMaterial_.SetFloat("_HeightMapClipmapArrayCount", heightMapClipmap.ClipmapTextureArray.depth);
     }
 
     // Update is called once per frame
     void Update()
     {
         UpdateTiles(mainCamera.transform.position);
-        UpdateMaterials();
 
         // Draw for main camera
         Graphics.DrawMeshInstanced(

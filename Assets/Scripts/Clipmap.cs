@@ -24,9 +24,19 @@ public class Clipmap : MonoBehaviour
     private Dictionary<GraphicsFence, List<Texture2D>> allLoadedTextures_ = new Dictionary<GraphicsFence, List<Texture2D>>();
     List<Texture2D> lastLoadedTextures_ = new List<Texture2D>();
     
-    public Texture2DArray ClipmapTextureArray
+    public Texture2DArray TextureArray
     {
         get => clipTextureArray_;
+    }
+
+    public int TileSizeTexels
+    {
+        get => tileSize_;
+    }
+
+    public int VirtualSizeTexels
+    {
+        get => virtualSize;
     }
 
     private string GetTileAddress(int lod, int x, int y)
@@ -62,7 +72,7 @@ public class Clipmap : MonoBehaviour
         }
     }
 
-    void Start()
+    void Awake()
     {
         var texture = LoadTileImmediate(GetTileAddress(0, 0, 0));
         textureFormat_ = texture.format;
@@ -121,7 +131,7 @@ public class Clipmap : MonoBehaviour
             var loadedTiles = loadedTilesRect_[i];
 
             var lodVirtualTileCount = (int)(virtualTileCount_ / Mathf.Pow(2, i));
-            Vector2Int centerSrcTile = new Vector2Int(Mathf.FloorToInt(xPos * lodVirtualTileCount), Mathf.FloorToInt(yPos * lodVirtualTileCount));
+            Vector2Int centerSrcTile = new Vector2Int(Mathf.RoundToInt(xPos * lodVirtualTileCount), Mathf.RoundToInt(yPos * lodVirtualTileCount));
 
             var halfTileCount = clipTileCount_ / 2;
             centerSrcTile.x = Mathf.Clamp(centerSrcTile.x, halfTileCount, lodVirtualTileCount - halfTileCount);

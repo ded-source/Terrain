@@ -23,6 +23,14 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _AlbedoMap:
+        m_Texture: {fileID: 2800000, guid: ff704fdfbe2f4d7498b85601825d6097, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _AlbedoMapClipmapArray:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _HeightMap:
         m_Texture: {fileID: 2800000, guid: 4d58490e19f900a41be802c5d547fca6, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -41,12 +49,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AlbedoMapClipmapArrayCount: 0
     - _ENABLE_DEBUG_VIEW: 0
     - _HeightMapClipmapArrayCount: 0
     - _HeightScale: 3000
     - _MainTexClipmapArrayCount: 0
     - _TerrainSize: 131072
     - _TileSize: 256
+    - _TileSizeTexels: 1
     m_Colors:
     - _TerrainSize: {r: 65536, g: 65536, b: 0, a: 0}
   m_BuildTextureStacks: []

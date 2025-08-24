@@ -2,17 +2,17 @@ Shader "Unlit/TerrainClipmapShader"
 {
     Properties
     {
-        _MainTex ("Albedo Map", 2D) = "white" {}
+        _AlbedoMap ("Albedo Map", 2D) = "white" {}
         _HeightMap ("Height Map", 2D) = "black" {}
 
-        _MainTexClipmapArray ("Albedo Map Clipmap Array", 2DArray) = "" {}
-        _MainTexClipmapArrayCount("Albedo Map Clipmap Array Count", Float) = 0.0
+        _AlbedoMapClipmapArray ("Albedo Map Clipmap Array", 2DArray) = "" {}
+        _AlbedoMapClipmapArrayCount("Albedo Map Clipmap Array Count", Float) = 0.0
         _HeightMapClipmapArray("Height Map Clipmap Array", 2DArray) = "" {}
         _HeightMapClipmapArrayCount("Height Map Clipmap Array Count", Float) = 0.0
 
         _TerrainSize("Terrain Size Meters", Float) = 1.0
         _HeightScale("Terrain Height Scale", Float) = 1.0
-        _TileSize("Terrain Tile Size Meters", Float) = 1.0
+        _TileSizeTexels("Terrain Tile Size Texels", Float) = 1.0
 
         [Toggle] _ENABLE_DEBUG_VIEW ("Enable Debug View", Float) = 0
     }
@@ -33,7 +33,7 @@ Shader "Unlit/TerrainClipmapShader"
 
             #include "UnityCG.cginc"
 
-            #ifdef _ENABLE_DEBUG_VIEW_ON
+#ifdef _ENABLE_DEBUG_VIEW_ON
             fixed4 randColor(float2 co)
             {
                 float rand = frac(sin(dot(co.xy ,float2(12.9898,78.233))) * 43758.5453);
@@ -44,7 +44,7 @@ Shader "Unlit/TerrainClipmapShader"
                 col.a = 1.0;
                 return col;
             }
-            #endif
+#endif
 
             struct appdata
             {
@@ -58,27 +58,33 @@ Shader "Unlit/TerrainClipmapShader"
                 float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
                 float lod : TEXCOORD1;
-                #ifdef _ENABLE_DEBUG_VIEW_ON
+#ifdef _ENABLE_DEBUG_VIEW_ON
                 nointerpolation float2 tilePos : TEXCOORD2;
-                #endif
+#endif
             };
 
-            sampler2D _MainTex;
+            sampler2D _AlbedoMap;
             sampler2D _HeightMap;
             float _TerrainSize;
             float _HeightScale;
-            float _TileSize;
+            float _TileSizeTexels;
 
-            UNITY_DECLARE_TEX2DARRAY(_MainTexClipmapArray);
-            float _MainTexClipmapArrayCount;
+            UNITY_DECLARE_TEX2DARRAY(_AlbedoMapClipmapArray);
+            float4 _AlbedoMapClipmapArray_TexelSize;
+            float _AlbedoMapClipmapArrayCount;
             UNITY_DECLARE_TEX2DARRAY(_HeightMapClipmapArray);
             float _HeightMapClipmapArrayCount;
 
-            float4 sampleClipmap(UNITY_ARGS_TEX2DARRAY(clipmapArray), float arrayCount, sampler2D baseTexture, float lod, float2 uv)
+            float4 sampleClipmap(UNITY_ARGS_TEX2DARRAY(clipmapArray), float arrayCount, sampler2D baseTexture, float lod, float minClipIndex, float2 uv)
             {
                 float4 col0 = float4(1, 0, 0, 1);
                 float4 col1 = float4(0, 1, 0, 1);
                 float lerpVal = 0.0;
+
+                if(lod < arrayCount)
+                {
+                    lod = max(lod, minClipIndex);
+                }
 
                 if(lod >= arrayCount - 1)
                 {
@@ -113,32 +119,61 @@ Shader "Unlit/TerrainClipmapShader"
                 UNITY_SETUP_INSTANCE_ID(v);
 
                 // Sample heightmap, assumes terrain origin is 0, 0, 0
-                float2 worldPos = mul(unity_ObjectToWorld, v.vertex).xz;
-                float2 uv = worldPos / _TerrainSize;
-                float vertexDistance = -UnityObjectToViewPos(v.vertex).z;
-                float lod = max(0, log2(vertexDistance / _TileSize / 4) - 0.5);
+                float3 cameraPos = _WorldSpaceCameraPos.xyz;
+                float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+                float2 uv = worldPos.xz / _TerrainSize;
 
-                float height = sampleClipmap(UNITY_PASS_TEX2DARRAY(_HeightMapClipmapArray), _HeightMapClipmapArrayCount, _HeightMap, lod, uv).r;
+                // Start with a sample from the low resolution map to get a more accurate distance estimate.
+                float approxHeight = tex2Dlod(_HeightMap, float4(uv, 0, 0));
+                worldPos.y = approxHeight;
+
+                // Compute lod distance based on clipmap size and distance to the eye.
+                float clipTexSize = _AlbedoMapClipmapArray_TexelSize.z - _TileSizeTexels * 2;
+                float terrainTexSize = _AlbedoMapClipmapArray_TexelSize.z * pow(2, _AlbedoMapClipmapArrayCount);
+                float lod0Distance = (0.25 * clipTexSize) / terrainTexSize * _TerrainSize;
+                float minClipIndex= max(0, log2(length(cameraPos.xz - worldPos.xz) / lod0Distance));
+                float lod = max(0, log2(length(cameraPos - worldPos) / lod0Distance));
+
+                // Sample height from full clipmap data.
+                float height = sampleClipmap(
+                    UNITY_PASS_TEX2DARRAY(_HeightMapClipmapArray),
+                    _HeightMapClipmapArrayCount, _HeightMap,
+                    lod, minClipIndex, uv
+                ).r;
                 
+                // Pass data to vertex shader.
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex + float4(0.0, height * _HeightScale, 0.0, 0.0));
                 o.uv = uv;
-                o.lod = lod;
-                #ifdef _ENABLE_DEBUG_VIEW_ON
+                // Passing minClipIndex for use in sampling the albedo texture assumes that both height and albedo
+                // textures have the same sizes.
+                o.lod = minClipIndex; 
+#ifdef _ENABLE_DEBUG_VIEW_ON
                 o.tilePos = mul(unity_ObjectToWorld, float4(0.0, 0.0, 0.0, 1.0)).xz;
-                #endif
+#endif
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                #ifdef _ENABLE_DEBUG_VIEW_ON
+#ifdef _ENABLE_DEBUG_VIEW_ON
                 fixed4 col = randColor(i.tilePos);
-                #else
+#else
+                // Get sample LOD based on ddx/ddy.
+                float terrainTexSize = _AlbedoMapClipmapArray_TexelSize.z * pow(2, _AlbedoMapClipmapArrayCount);
+                float2 textureSize = float2(terrainTexSize, terrainTexSize);
+                float2 dx = ddx(i.uv) * textureSize;
+                float2 dy = ddy(i.uv) * textureSize;
+                float d = max(dot(dx, dx), dot(dy, dy));
+                float lod = 0.5 * log2(d);
 
-                fixed4 col = sampleClipmap(UNITY_PASS_TEX2DARRAY(_MainTexClipmapArray), _MainTexClipmapArrayCount, _MainTex, i.lod, i.uv);
-                
-                #endif
+                // Sample albedo map.
+                fixed4 col = sampleClipmap(
+                    UNITY_PASS_TEX2DARRAY(_AlbedoMapClipmapArray),
+                    _AlbedoMapClipmapArrayCount, _AlbedoMap,
+                    lod, i.lod, i.uv
+                );
+#endif
                 return col;
             }
             ENDCG
